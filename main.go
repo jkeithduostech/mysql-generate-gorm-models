@@ -8,6 +8,8 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/jinzhu/inflection"
+
 	"github.com/joho/godotenv"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -15,31 +17,37 @@ import (
 
 var modelTemplate = `package models
 
+{{if .ModelImports}}
 import (
-    "gorm.io/gorm"
+{{range .ModelImports}}
+	"{{.}}"
+{{end}}
 )
+{{end}}    
+
 
 type {{.TableName}} struct {
 {{- range .Columns }}
-    {{.Name}} {{.Type}} ` + "`gorm:\"column:{{.DBName}}\"`" + `
+    {{.Name}} {{.Type}} ` + "`gorm:\"column:{{.GormName}}\"`" + `
 {{- end }}
 }
 
 func ({{.TableName}}) TableName() string {
-    return "{{.DBName}}"
+    return "{{.DBTableName}}"
 }
 `
 
 type Column struct {
-	Name   string
-	Type   string
-	DBName string
+	Name     string
+	GormName string
+	Type     string
 }
 
 type Table struct {
-	TableName string
-	DBName    string
-	Columns   []Column
+	TableName    string
+	DBTableName  string
+	Columns      []Column
+	ModelImports []string
 }
 
 func main() {
@@ -99,15 +107,44 @@ func main() {
 
 func generateModel(db *gorm.DB, tableName, destPath string) {
 	var columns []Column
-	_, err := db.Migrator().ColumnTypes(tableName)
+	var modelImports []string
+	columnTypes, err := db.Migrator().ColumnTypes(tableName)
 	if err != nil {
 		log.Fatalf("Failed to get columns for table %s: %v", tableName, err)
 	}
 
+	for _, columnType := range columnTypes {
+		modelColumnType := columnType.DatabaseTypeName()
+		// Add special handling for datetime columns
+		switch columnType.DatabaseTypeName() {
+		case "datetime", "timestamp":
+			modelColumnType = "time.Time"
+			if !strings.Contains(strings.Join(modelImports, ","), "time") {
+				modelImports = append(modelImports, "time")
+			}
+		case "tinyint":
+			modelColumnType = "int"
+		case "varchar":
+			modelColumnType = "string"
+		}
+
+		column := Column{
+			Name:     camelCase(columnType.Name()),
+			Type:     modelColumnType,
+			GormName: columnType.Name(),
+			// Add other fields as necessary
+		}
+		columns = append(columns, column)
+	}
+
+	// depluralize table name
+	depluraizedTableName := inflection.Singular(tableName)
+
 	table := Table{
-		TableName: camelCase(tableName),
-		DBName:    tableName,
-		Columns:   columns,
+		TableName:    camelCase(depluraizedTableName),
+		Columns:      columns,
+		DBTableName:  tableName,
+		ModelImports: modelImports,
 	}
 
 	tmpl, err := template.New("model").Parse(modelTemplate)
