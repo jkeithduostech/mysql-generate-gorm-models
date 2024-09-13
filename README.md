@@ -26,7 +26,7 @@ The application accepts the following command-line arguments:
 ### Example Command
 
 ```sh
-go run main.go -destPathg=./models -dbuser=user -dbpassword=password -dbhost=127.0.0.1 -dbport=3306 -dbname=dbname -tables="table1,table2"
+go run main.go -destPath=./models -dbuser=user -dbpassword=password -dbhost=127.0.0.1 -dbport=3306 -dbname=dbname -tables="table1,table2"
 ```
 
 ### Example Command With .env
