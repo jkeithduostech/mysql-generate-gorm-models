@@ -8,6 +8,9 @@ import (
 	"strings"
 	"text/template"
 
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+
 	"github.com/jinzhu/inflection"
 
 	"github.com/joho/godotenv"
@@ -67,19 +70,41 @@ func main() {
 		if err != nil {
 			log.Fatalf("Error loading .env file: %v", err)
 		}
+		log.Printf("Loaded environment variables from %s", *envFile)
+
+		// Map of flag pointers to their corresponding environment variable names
+		envVars := map[string]*string{
+			"DESTPATH":    destPath,
+			"DB_USER":     dbUser,
+			"DB_PASSWORD": dbPassword,
+			"DB_HOST":     dbHost,
+			"DB_PORT":     dbPort,
+			"DB_NAME":     dbName,
+			"TABLES":      tables,
+		}
+
+		// Override flag variables with environment variables if they exist
+		for envVar, flagPtr := range envVars {
+			if val, exists := os.LookupEnv(envVar); exists {
+				*flagPtr = val
+			}
+		}
 	}
 
 	// Override environment variables with command-line arguments if provided
+	if *destPath == "." {
+		*destPath = os.Getenv("DESTPATH")
+	}
 	if *dbUser == "" {
 		*dbUser = os.Getenv("DB_USER")
 	}
 	if *dbPassword == "" {
 		*dbPassword = os.Getenv("DB_PASSWORD")
 	}
-	if *dbHost == "" {
+	if *dbHost == "127.0.0.1" {
 		*dbHost = os.Getenv("DB_HOST")
 	}
-	if *dbPort == "" {
+	if *dbPort == "3306" {
 		*dbPort = os.Getenv("DB_PORT")
 	}
 	if *dbName == "" {
@@ -94,6 +119,7 @@ func main() {
 	}
 
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", *dbUser, *dbPassword, *dbHost, *dbPort, *dbName)
+	log.Printf("Connecting to database: %s", dsn)
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
@@ -165,9 +191,10 @@ func generateModel(db *gorm.DB, tableName, destPath string) {
 }
 
 func camelCase(s string) string {
+	caser := cases.Title(language.Und)
 	parts := strings.Split(s, "_")
 	for i := range parts {
-		parts[i] = strings.Title(parts[i])
+		parts[i] = caser.String(parts[i])
 	}
 	return strings.Join(parts, "")
 }

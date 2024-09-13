@@ -14,7 +14,7 @@ This Go application generates GORM models based on existing tables in a MySQL da
 
 The application accepts the following command-line arguments:
 
-- `-dest`: Destination path for generated models (default: `.`).
+- `-destPath`: Destination path for generated models (default: `.`).
 - `-env`: Path to `.env` file (default: `.env`).
 - `-dbuser`: Database user.
 - `-dbpassword`: Database password.
@@ -26,17 +26,17 @@ The application accepts the following command-line arguments:
 ### Example Command
 
 ```sh
-go run main.go -dest=./models -dbuser=user -dbpassword=password -dbhost=127.0.0.1 -dbport=3306 -dbname=dbname -tables="table1,table2"
+go run main.go -destPathg=./models -dbuser=user -dbpassword=password -dbhost=127.0.0.1 -dbport=3306 -dbname=dbname -tables="table1,table2"
 ```
 
 ### Example Command With .env
 
 ```sh
-go run main.go -dest=./models -env=.env
+go run main.go -destPath=./models -env=.env
 ```
 
 ### Example Command With .env with overrideing values
 
 ```sh
-go run main.go -dest=./models -env=.env -tables="table1,table2"
+go run main.go -destPath=./models -env=.env -tables="table1,table2"
 ```
